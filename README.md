@@ -59,7 +59,13 @@ Zentinel adopts a **Stream-Copy First** approach: all video feeds (ONVIF, RTSP, 
    ```bash
    docker compose logs -f
    ```
-
+6. **Create a View-Only User (Optional):**
+   To create a restricted user with permissions limited solely to viewing camera feeds (without access to configuration settings or user management):
+   - Log into the Django Admin panel at `http://app_ip/admin/` using your superuser credentials.
+   - Go to **Users** and click **Add user**.
+   - Set an `Username` and `Password` for the new user and click **Save**.
+   - On the user details page, ensure **Active** is checked, but leave **Staff status** and **Superuser status** UNCHECKED.
+   - Under **User permissions**, assign only read access: `camera | camera | Can view camera` (or assign the user to a dedicated `Viewers` group).
 ---
 
 ## 📹 CAMERA CONFIGURATION
@@ -181,7 +187,13 @@ Sfrutta le capacità di `go2rtc` per la creazione di loopback in WebRTC/RTSP per
    ```bash
    docker compose logs -f
    ```
-
+6. **Creare un Utente di Sola Visualizzazione (Opzionale):**
+   Per creare un utente abilitato unicamente alla visione dei flussi video (senza permessi di modifica delle impostazioni o gestione utenti):
+   - Accedi al pannello di amministrazione Django all'indirizzo `http://app_ip/admin/` con le tue credenziali da superuser.
+   - Vai nella sezione **Users** e clicca su **Add user**.
+   - Imposta `Username` e `Password` per il nuovo utente e clicca su **Save**.
+   - Nella scheda del nuovo utente, assicurati che la spunta **Active** sia selezionata e che le opzioni **Staff status** e **Superuser status** rimangano DESELEZIONATE.
+   - Nella sezione **User permissions**, assegna esclusivamente il permesso di lettura: `camera | camera | Can view camera` (oppure assegna l'utente a un gruppo dedicato, ad esempio `Viewers`).
 ---
 
 ## 📹 AGGIUNTA E CONFIGURAZIONE TELECAMERE
