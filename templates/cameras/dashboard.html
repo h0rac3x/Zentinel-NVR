@@ -1,0 +1,542 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "Zentinel - NVR Dashboard" %}</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #121212; color: #fff; margin: 0; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
+        
+        /* Buttons */
+        button { background-color: #007bff; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 13px; }
+        button:hover { background-color: #0056b3; }
+        .btn-success { background-color: #28a745; }
+        .btn-success:hover { background-color: #218838; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #bd2130; }
+        .btn-warning { background-color: #ffc107; color: #111; }
+        .btn-warning:hover { background-color: #d39e00; }
+        .btn-cancel { background: #6c757d; }
+
+        /* Camera grid */
+        .camera-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 15px; }
+        .camera-card { background: #1e1e1e; border-radius: 6px; padding: 12px; border: 1px solid #333; display: flex; flex-direction: column; gap: 8px; }
+        .camera-header { display: flex; justify-content: space-between; align-items: center; }
+        .camera-header h3 { margin: 0; font-size: 16px; }
+        .camera-actions { display: flex; gap: 6px; }
+        
+        .video-container { position: relative; width: 100%; height: 230px; background-color: #000; border-radius: 4px; overflow: hidden; cursor: pointer; }
+        .video-container iframe { width: 100%; height: 100%; border: none; pointer-events: none; }
+        .video-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0); transition: background 0.2s; }
+        .video-container:hover .video-overlay { background: rgba(0,0,0,0.2); }
+
+        /* Modals */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; }
+        
+        /* Two-column form modal */
+        .modal-content-wide { background: #1e1e1e; padding: 25px; border-radius: 8px; width: 850px; max-width: 95%; border: 1px solid #333; }
+        .modal-body-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; }
+        
+        .modal-fullscreen { width: 90vw; height: 85vh; max-width: 1200px; display: flex; flex-direction: column; background: #181818; padding: 15px; }
+        .modal-fullscreen iframe { width: 100%; flex-grow: 1; border: none; border-radius: 6px; background: #000; }
+
+        /* Form & Input */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 4px; font-size: 12px; color: #aaa; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #2a2a2a; color: #fff; box-sizing: border-box; font-size: 13px; }
+        
+        /* Left discovery panel */
+        .discovery-panel { background: #141414; border: 1px solid #333; border-radius: 6px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .discovery-results { flex-grow: 1; overflow-y: auto; max-height: 480px; font-size: 12px; background: #0a0a0a; border: 1px solid #222; border-radius: 4px; padding: 10px; }
+        
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; margin-left: 5px; }
+        .badge-success { background: #28a745; color: #fff; }
+        .badge-info { background: #17a2b8; color: #fff; }
+        .badge-warning { background: #ffc107; color: #111; }
+
+        .option-card { background: #1a1a1a; border: 1px solid #333; border-radius: 4px; padding: 8px; margin-bottom: 8px; }
+        .option-card:hover { border-color: #007bff; }
+
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; border-top: 1px solid #333; padding-top: 15px; }
+        .language-form { display: flex; align-items: center; gap: 8px; }
+        .language-form label { color: #aaa; font-size: 12px; }
+        .language-form select { padding: 6px 8px; border-radius: 4px; border: 1px solid #444; background: #2a2a2a; color: #fff; }
+        .logout-form { margin: 0; }
+        .logout-button { background-color: #6c757d; }
+        .logout-button:hover { background-color: #5a6268; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Zentinel NVR</h1>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <form class="language-form" action="{% url 'set_language' %}" method="post">
+                {% csrf_token %}
+                <label for="language-select">{% trans "Language" %}</label>
+                <select id="language-select" name="language" onchange="this.form.submit()">
+                    {% get_current_language as CURRENT_LANGUAGE %}
+                    {% get_available_languages as AVAILABLE_LANGUAGES %}
+                    {% for language_code, language_name in AVAILABLE_LANGUAGES %}
+                        <option value="{{ language_code }}"{% if language_code == CURRENT_LANGUAGE %} selected{% endif %}>{{ language_name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="next" value="{{ request.path }}">
+            </form>
+            <form class="logout-form" action="{% url 'logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="logout-button">{% trans "Log out" %}</button>
+            </form>
+            {% if is_admin %}<button onclick="openFormModal()">+ {% trans "Add camera" %}</button>{% endif %}
+        </div>
+    </header>
+
+    <!-- Multi-camera grid -->
+    <div id="camera-grid" class="camera-grid"></div>
+
+    <!-- Add/edit camera modal -->
+    <div id="cameraFormModal" class="modal">
+        <div class="modal-content-wide">
+            <h2 id="modalTitle" style="margin: 0;">{% trans "New camera" %}</h2>
+            
+            <form id="cameraForm">
+                <input type="hidden" id="cam_id">
+                
+                <div class="modal-body-grid">
+                    
+                    <!-- Left column: discovery and diagnostics -->
+                    <div class="discovery-panel">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="font-size: 14px;">Discovery & Inspection</strong>
+                            {% if is_admin %}<button type="button" class="btn-success" onclick="runDiscovery()">🔍 {% trans "Start discovery" %}</button>{% endif %}
+                        </div>
+                        <p style="font-size: 11px; color: #888; margin: 0;">{% trans "Scan video sources through go2rtc and ffprobe using the entered IP address and credentials. It may take a few seconds" %}</p>
+                        
+                        <div id="discoveryResults" class="discovery-results">
+                            <span style="color: #666;">{% trans "Press Start discovery to analyze the camera." %}</span>
+                        </div>
+                    </div>
+
+                    <!-- Right column: camera and recording settings -->
+                    <div>
+                        <div class="form-group">
+                            <label>{% trans "Camera name" %}</label>
+                            <input type="text" id="cam_name" required placeholder="{% trans "e.g. Main entrance" %}">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label>{% trans "IP address" %}</label>
+                                <input type="text" id="cam_ip" required placeholder="10.5.50.222">
+                            </div>
+                            <div class="form-group">
+                                <label>{% trans "Port" %}</label>
+                                <input type="number" id="cam_port" value="8899" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>{% trans "Protocol" %}</label>
+                            <select id="cam_protocol" onchange="onProtocolChange()">
+                                <option value="ONVIF">ONVIF {% trans "Auto-detect" %}</option>
+                                <option value="RTSP">RTSP {% trans "Standard" %}</option>
+                                <option value="HTTP">HTTP / {% trans "Custom stream" %}</option>
+                            </select>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label>Username</label>
+                                <input type="text" id="cam_user" value="admin">
+                            </div>
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" id="cam_pass">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                                <div class="form-group">
+                                    <label><input type="checkbox" id="cam_is_active" checked> {% trans "Camera active" %}</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sezione Stream Selectors -->
+                        <div class="form-group">
+                            <label>{% trans "Main stream path" %}</label>
+                            <select id="cam_main_select" onchange="toggleCustomInputs()">
+                                <option value="AUTO">{% trans "Automatic default" %}</option>
+                                <option value="CUSTOM">-- {% trans "Custom" %} --</option>
+                            </select>
+                            <input type="text" id="cam_custom_main" placeholder="{% trans "Custom main stream URL (e.g. http://192.168.1.50/mjpeg)" %}" style="display: none; margin-top: 5px;">
+                        </div>
+
+                        <div class="form-group">
+                            <label>{% trans "Sub stream path" %}</label>
+                            <select id="cam_sub_select" onchange="toggleCustomInputs()">
+                                <option value="AUTO">{% trans "Automatic default" %}</option>
+                                <option value="CUSTOM">-- {% trans "Custom" %} --</option>
+                            </select>
+                            <input type="text" id="cam_custom_sub" placeholder="{% trans "Custom sub stream URL" %}" style="display: none; margin-top: 5px;">
+                        </div>
+
+                        <!-- Recording section -->
+                        <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
+                        <strong style="font-size: 13px; color: #ffc107;">📹 {% trans "Recording settings" %}</strong>
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label><input type="checkbox" id="cam_record_enabled"> {% trans "Enable continuous recording" %}</label>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label>{% trans "Retention (days)" %}</label>
+                                <input type="number" id="cam_retention_days" value="7" min="1" max="90">
+                            </div>
+                            <div class="form-group">
+                                <label>{% trans "Segment duration (minutes)" %}</label>
+                                <input type="number" id="cam_segment_duration" value="15" min="1" max="60">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>{% trans "Destination directory (NAS / disk)" %}</label>
+                            <input type="text" id="cam_record_path" placeholder="{% trans "e.g. /mnt/nas/recordings (blank = default)" %}">
+                        </div>
+
+                        <div class="form-group">
+                            <label>{% trans "File naming format (read-only)" %}</label>
+                            <input type="text" value="{% trans "YYYY-MM-DD / HH-MM-SS.mp4" %}" readonly style="background: #181818; color: #777; cursor: not-allowed; border-style: dashed;">
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeFormModal()">{% trans "Cancel" %}</button>
+                    <button type="submit">{% trans "Save and activate" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Fullscreen live video modal -->
+    <div id="videoModal" class="modal">
+        <div class="modal-content modal-fullscreen">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h2 id="videoModalTitle" style="margin: 0;">{% trans "Live camera" %}</h2>
+                <button class="btn-cancel" onclick="closeVideoModal()">{% trans "Close" %} ✕</button>
+            </div>
+            <iframe id="videoPlayerFrame" src="" allow="autoplay"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const GO2RTC_HOST = window.location.hostname;
+
+        function getCsrfToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]').value;
+        }
+
+        document.addEventListener('DOMContentLoaded', loadCameras);
+
+        function loadCameras() {
+            fetch('/api/cameras/')
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('camera-grid');
+                    container.innerHTML = '';
+                    
+                    data.cameras.forEach(cam => {
+                        const card = document.createElement('div');
+                        card.className = 'camera-card';
+                        card.innerHTML = `
+                            <div class="camera-header">
+                                <h3>${cam.name} <small style="font-weight:normal; font-size:12px; color:#888;">(${cam.ip_address})</small></h3>
+                                {% if is_admin %}<div class="camera-actions">
+                                    <button class="btn-warning" onclick="editCamera(${cam.id})">✏️ {% trans "Edit" %}</button>
+                                    <button class="btn-danger" onclick="deleteCamera(${cam.id})">🗑️</button>
+                                </div>{% endif %}
+                            </div>
+                            <div class="video-container" onclick="openVideoModal('${cam.stream_main}', '${cam.name}')">
+                                <iframe src="http://${GO2RTC_HOST}:1984/stream.html?src=${cam.stream_sub}&mode=webrtc&media=video&mute" allow="autoplay" muted></iframe>
+                                <div class="video-overlay"></div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                })
+                .catch(err => console.error('{% trans "Failed to load cameras:" %}', err));
+        }
+
+        // Handle protocol changes, including HTTP mode.
+        function onProtocolChange() {
+            const proto = document.getElementById('cam_protocol').value;
+            const portInput = document.getElementById('cam_port');
+
+            if (proto === 'HTTP') {
+                portInput.value = 80;
+                // Select custom paths and show their text inputs automatically.
+                document.getElementById('cam_main_select').value = 'CUSTOM';
+                document.getElementById('cam_sub_select').value = 'CUSTOM';
+                toggleCustomInputs();
+                document.getElementById('cam_custom_main').focus();
+            } else if (proto === 'ONVIF') {
+                portInput.value = 8899;
+            } else { // RTSP
+                portInput.value = 554;
+            }
+        }
+
+        function toggleCustomInputs() {
+            const mainSel = document.getElementById('cam_main_select').value;
+            const subSel = document.getElementById('cam_sub_select').value;
+            
+            document.getElementById('cam_custom_main').style.display = (mainSel === 'CUSTOM') ? 'block' : 'none';
+            document.getElementById('cam_custom_sub').style.display = (subSel === 'CUSTOM') ? 'block' : 'none';
+        }
+
+        function openFormModal(isEdit = false) {
+            document.getElementById('modalTitle').innerText = isEdit ? '{% trans "Edit camera" %}' : '{% trans "New camera" %}';
+            document.getElementById('cameraFormModal').style.display = 'flex';
+        }
+
+        function closeFormModal() {
+            document.getElementById('cameraFormModal').style.display = 'none';
+            document.getElementById('cameraForm').reset();
+            document.getElementById('cam_id').value = '';
+    
+            document.getElementById('cam_is_active').checked = true;
+            document.getElementById('cam_record_enabled').checked = false;
+                
+            document.getElementById('discoveryResults').innerHTML = '<span style="color: #666;">{% trans "Press Start discovery to analyze the camera." %}</span>';
+    
+            document.getElementById('cam_main_select').innerHTML = '<option value="AUTO">{% trans "Automatic default" %}</option><option value="CUSTOM">-- {% trans "Custom" %} --</option>';
+            document.getElementById('cam_sub_select').innerHTML = '<option value="AUTO">{% trans "Automatic default" %}</option><option value="CUSTOM">-- {% trans "Custom" %} --</option>';
+            toggleCustomInputs();
+        }
+
+        // Run discovery with support for custom HTTP URLs and warnings.
+        function runDiscovery() {
+            const resultsDiv = document.getElementById('discoveryResults');
+            resultsDiv.innerHTML = '<span style="color: #ffc107;">⏳ {% trans "Analyzing streams with go2rtc and ffprobe..." %}</span>';
+
+            const proto = document.getElementById('cam_protocol').value;
+            const mainSel = document.getElementById('cam_main_select').value;
+            const subSel = document.getElementById('cam_sub_select').value;
+
+            const payload = {
+                protocol: proto,
+                ip_address: document.getElementById('cam_ip').value,
+                port: document.getElementById('cam_port').value,
+                username: document.getElementById('cam_user').value,
+                password: document.getElementById('cam_pass').value,
+                custom_main_url: (mainSel === 'CUSTOM') ? document.getElementById('cam_custom_main').value : null,
+                custom_sub_url: (subSel === 'CUSTOM') ? document.getElementById('cam_custom_sub').value : null
+            };
+
+            fetch('/api/cameras/probe/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    resultsDiv.innerHTML = `<span style="color: #dc3545;">❌ ${data.error}</span>`;
+                    return;
+                }
+
+                resultsDiv.innerHTML = '';
+                const mainSelect = document.getElementById('cam_main_select');
+                const subSelect = document.getElementById('cam_sub_select');
+
+                if (proto !== 'HTTP') {
+                    mainSelect.innerHTML = '<option value="AUTO">{% trans "Automatic default" %}</option>';
+                    subSelect.innerHTML = '<option value="AUTO">{% trans "Automatic default" %}</option>';
+                }
+
+                if (data.type === 'ONVIF') {
+                    data.options.forEach(opt => {
+                        const info = opt.info;
+                        const infoText = info.online 
+                            ? `${info.resolution} | ${info.codec} | ${info.fps} FPS` 
+                            : '{% trans "Unreachable" %}';
+
+                        resultsDiv.innerHTML += `
+                            <div class="option-card">
+                                <strong>${opt.name}</strong><br>
+                                <span style="color: #aaa;">${opt.url}</span><br>
+                                <span class="badge ${info.online ? 'badge-success' : 'badge-info'}">${infoText}</span>
+                            </div>
+                        `;
+
+                        if (info.online) {
+                            const optionElem = `<option value="${opt.url}">${opt.name} (${info.resolution})</option>`;
+                            mainSelect.innerHTML += optionElem;
+                            subSelect.innerHTML += optionElem;
+                        }
+                    });
+                } else if (data.type === 'HTTP') {
+                    data.options.forEach(opt => {
+                        const info = opt.info;
+                        const infoText = info.online 
+                            ? `${info.resolution} | ${info.codec} | ${info.fps} FPS` 
+                            : '{% trans "Unreachable" %}';
+
+                        resultsDiv.innerHTML += `
+                            <div class="option-card">
+                                <strong>${opt.name}</strong><br>
+                                <span style="color: #aaa;">${opt.url}</span><br>
+                                <span class="badge ${info.online ? 'badge-success' : 'badge-info'}">${infoText}</span>
+                            </div>
+                        `;
+
+                        if (info.online) {
+                            const optionElem = `<option value="${opt.url}">${opt.name} (${info.resolution})</option>`;
+                            mainSelect.innerHTML += optionElem;
+                            subSelect.innerHTML += optionElem;
+                        }
+                    });
+                } else { // RTSP
+                    data.options.forEach(opt => {
+                        const m = opt.main_info;
+                        const s = opt.sub_info;
+
+                        resultsDiv.innerHTML += `
+                            <div class="option-card">
+                                <strong>{% trans "Pattern" %}: ${opt.label}</strong><br>
+                                Main: <span style="color: #888;">${opt.main_path}</span> 
+                                <span class="badge badge-success">${m.resolution} | ${m.codec}</span><br>
+                                Sub: <span style="color: #888;">${opt.sub_path}</span> 
+                                <span class="badge badge-info">${s.resolution || 'N/A'}</span>
+                            </div>
+                        `;
+
+                        mainSelect.innerHTML += `<option value="${opt.main_path}">${opt.label} - Main (${m.resolution})</option>`;
+                        subSelect.innerHTML += `<option value="${opt.sub_path}">${opt.label} - Sub (${s.resolution || 'N/A'})</option>`;
+                    });
+                }
+
+                mainSelect.innerHTML += '<option value="CUSTOM">-- {% trans "Custom" %} --</option>';
+                subSelect.innerHTML += '<option value="CUSTOM">-- {% trans "Custom" %} --</option>';
+
+                if (proto === 'HTTP') {
+                    mainSelect.value = 'CUSTOM';
+                    subSelect.value = 'CUSTOM';
+                    toggleCustomInputs();
+                }
+            })
+            .catch(err => {
+                resultsDiv.innerHTML = `<span style="color: #dc3545;">❌ {% trans "Probe failed:" %} ${err.message}</span>`;
+            });
+        }
+
+        function editCamera(id) {
+            fetch(`/api/cameras/${id}/`)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('cam_id').value = data.id;
+                    document.getElementById('cam_name').value = data.name;
+                    document.getElementById('cam_ip').value = data.ip_address;
+                    document.getElementById('cam_protocol').value = data.protocol;
+                    document.getElementById('cam_port').value = data.port;
+                    document.getElementById('cam_user').value = data.username;
+                    document.getElementById('cam_pass').value = data.password;
+                    
+                    if (data.custom_main_url) {
+                        document.getElementById('cam_main_select').value = 'CUSTOM';
+                        document.getElementById('cam_custom_main').value = data.custom_main_url;
+                    }
+                    if (data.custom_sub_url) {
+                        document.getElementById('cam_sub_select').value = 'CUSTOM';
+                        document.getElementById('cam_custom_sub').value = data.custom_sub_url;
+                    }
+                    document.getElementById('cam_is_active').checked = data.is_active;
+                    document.getElementById('cam_record_enabled').checked = data.record_enabled;
+                    document.getElementById('cam_retention_days').value = data.retention_days || 7;
+                    document.getElementById('cam_segment_duration').value = data.segment_duration_minutes || 15;
+                    document.getElementById('cam_record_path').value = data.record_path || '';
+
+                    toggleCustomInputs();
+                    openFormModal(true);
+                });
+        }
+
+        function deleteCamera(id) {
+            if (!confirm('{% trans "Are you sure you want to delete this camera?" %}')) return;
+
+            fetch(`/api/cameras/${id}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': getCsrfToken() }
+            })
+                .then(res => {
+                    if (!res.ok) throw new Error('{% trans "Failed to delete the camera" %}');
+                    loadCameras();
+                })
+                .catch(err => alert(err.message));
+        }
+
+        document.getElementById('cameraForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const id = document.getElementById('cam_id').value;
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/cameras/${id}/` : '/api/cameras/';
+
+            const mainSel = document.getElementById('cam_main_select').value;
+            const subSel = document.getElementById('cam_sub_select').value;
+
+            const customMain = (mainSel === 'CUSTOM') ? document.getElementById('cam_custom_main').value : (mainSel !== 'AUTO' ? mainSel : null);
+            const customSub = (subSel === 'CUSTOM') ? document.getElementById('cam_custom_sub').value : (subSel !== 'AUTO' ? subSel : null);
+
+            const payload = {
+                name: document.getElementById('cam_name').value,
+                ip_address: document.getElementById('cam_ip').value,
+                protocol: document.getElementById('cam_protocol').value,
+                port: parseInt(document.getElementById('cam_port').value),
+                username: document.getElementById('cam_user').value,
+                password: document.getElementById('cam_pass').value,
+                custom_main_url: customMain,
+                custom_sub_url: customSub,
+                is_active: document.getElementById('cam_is_active').checked,
+                record_enabled: document.getElementById('cam_record_enabled').checked,
+                retention_days: parseInt(document.getElementById('cam_retention_days').value),
+                segment_duration_minutes: parseInt(document.getElementById('cam_segment_duration').value),
+                record_path: document.getElementById('cam_record_path').value
+            };
+
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('{% trans "Failed to save the camera" %}');
+                return res.json();
+            })
+            .then(() => {
+                closeFormModal();
+                loadCameras();
+            })
+            .catch(err => alert(err.message));
+        });
+
+        function openVideoModal(streamMain, cameraName) {
+            document.getElementById('videoModalTitle').innerText = cameraName + ' - ' + '{% trans "Main stream"|escapejs %}';
+            const iframe = document.getElementById('videoPlayerFrame');
+            iframe.src = `http://${GO2RTC_HOST}:1984/stream.html?src=${streamMain}&mode=webrtc`;
+            document.getElementById('videoModal').style.display = 'flex';
+        }
+
+        function closeVideoModal() {
+            const iframe = document.getElementById('videoPlayerFrame');
+            iframe.src = '';
+            document.getElementById('videoModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

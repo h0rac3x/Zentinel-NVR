@@ -1,0 +1,41 @@
+services:
+  # Container go2rtc: use a customgo2rtc.yaml
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    container_name: zentinel_go2rtc
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./go2rtc.yaml:/config/go2rtc.yaml:ro
+
+  # Container Backend Django + Gunicorn
+  web:
+    build: .
+    container_name: zentinel_web
+    restart: unless-stopped
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 1 --threads 4 --timeout 120
+    network_mode: host
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+      - /home/recordings_zentinel:/home/recordings_zentinel #add directory of the recordings
+    depends_on:
+      - go2rtc
+
+  # Reverse Proxy Nginx
+  nginx:
+    image: nginx:alpine
+    container_name: zentinel_nginx
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles:ro
+    depends_on:
+      web:
+        condition: service_started
+
+volumes:
+  static_volume:

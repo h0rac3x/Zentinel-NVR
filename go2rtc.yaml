@@ -1,0 +1,16 @@
+#for security lock the API to localhost
+api:
+  listen: ":1984"
+
+rtsp:
+  listen: ":8554"
+
+webrtc:
+  listen: ":8555"
+
+log:
+  level: "error" # Option: trace, debug, info, warn, error
+  api: "trace"
+  stream: "trace"
+
+streams: {}

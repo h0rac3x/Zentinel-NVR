@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zentinel NVR - Login</title>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background-color: #1e293b; padding: 2rem; border-radius: 8px; width: 100%; max-width: 360px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
+        h1 { margin-top: 0; font-size: 1.5rem; text-align: center; color: #38bdf8; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: #94a3b8; }
+        input[type="text"], input[type="password"] { width: 100%; padding: 0.5rem; border: 1px solid #334155; border-radius: 4px; background: #0f172a; color: #fff; box-sizing: border-box; }
+        button { width: 100%; padding: 0.6rem; border: none; border-radius: 4px; background-color: #0284c7; color: white; font-weight: bold; cursor: pointer; margin-top: 1rem; }
+        button:hover { background-color: #0369a1; }
+        .error { background: #7f1d1d; color: #fca5a5; padding: 0.5rem; border-radius: 4px; font-size: 0.875rem; margin-bottom: 1rem; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>ZENTINEL NVR</h1>
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+        <form method="post" action="{% url 'login' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">Sign In</button>
+        </form>
+    </div>
+</body>
+</html>
