@@ -43,6 +43,7 @@ Zentinel adopts a **Stream-Copy First** approach: all video feeds (ONVIF, RTSP, 
    ```bash
    docker compose up -d --build
    ```
+   *(could be really slow do to apt update)*
 
 3. **Apply database migrations:**
    ```bash
@@ -177,6 +178,7 @@ Sfrutta le capacità di `go2rtc` per la creazione di loopback in WebRTC/RTSP per
    ```bash
    docker compose up -d --build
    ```
+   *(può essere molto lento a causa di apt update)*
 
 3. **Esegui le migrazioni del database:**
    ```bash
