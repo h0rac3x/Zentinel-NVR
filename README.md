@@ -67,6 +67,12 @@ Zentinel adopts a **Stream-Copy First** approach: all video feeds (ONVIF, RTSP, 
    - On the user details page, ensure **Active** is checked, but leave **Staff status** and **Superuser status** UNCHECKED.
    - Under **User permissions**, assign only read access: `camera | camera | Can view camera` (or assign the user to a dedicated `Viewers` group).
 ---
+7. **Firewall Setup (Recommended):**
+   Since the services run in `network_mode: host`, it is recommended to execute the script to restrict external access solely to web port `80` (and port `22` for SSH), blocking direct access to internal ports `8000` (Django) and `1984` (go2rtc):
+
+   ```bash
+   chmod +x set_firewall.sh
+   sudo ./set_firewall.sh
 
 ## 📹 CAMERA CONFIGURATION
 
@@ -195,6 +201,12 @@ Sfrutta le capacità di `go2rtc` per la creazione di loopback in WebRTC/RTSP per
    - Nella scheda del nuovo utente, assicurati che la spunta **Active** sia selezionata e che le opzioni **Staff status** e **Superuser status** rimangano DESELEZIONATE.
    - Nella sezione **User permissions**, assegna esclusivamente il permesso di lettura: `camera | camera | Can view camera` (oppure assegna l'utente a un gruppo dedicato, ad esempio `Viewers`).
 ---
+7. **Configurazione del Firewall (Consigliato):**
+   Poiché i servizi utilizzano la modalità `network_mode: host`, si raccomanda di eseguire lo script per limitare l'accesso dall'esterno alla sola porta web `80` (ed eventualmente `22` per SSH), bloccando l'accesso diretto alle porte interne `8000` (Django) e `1984` (go2rtc):
+
+   ```bash
+   chmod +x set_firewall.sh
+   sudo ./set_firewall.sh
 
 ## 📹 AGGIUNTA E CONFIGURAZIONE TELECAMERE
 
